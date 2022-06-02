@@ -1,0 +1,1320 @@
+\documentclass{report}
+
+\usepackage[warn]{mathtext}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage{tempora}
+\usepackage[12pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{listings}
+\lstset{language=C++,
+        basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{red}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Умножение плотных матриц. Элементы типа double. Блочная схема, алгоритм Кэннона.»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381906-2 \\ Утюгов Д. Е.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2022 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+\par Матрица - это такая таблица, которая состоит из элементов, расположение которых определяется при помощи порядкого номера столбца и строки. Видов матриц существует немало, но рассмотрим два основных: квадратная и прямоугольная.\\
+Прямоугольная матрица - это матрица в которой количество строк и столбцов не совпадает.\\
+Квадратная матрица - это матрица, количество строк и столбцов которой одинаково.
+\par Плотной матрицей считается матрица, большинство элементов которой ненулевые значения.
+\par Перемножив две матрицы, получим матрицу, которая получается при суммировании произведений всех элементов строки i первой матрицы и всех соответствующих элементов колонки j второй матрицы.
+\begin{equation}\label{eq:mult}
+c_{ij} =  \sum \limits_{p=1}^{n} a_{ip} * b_{pj}
+\end{equation}
+При этом перемножающиеся матрицы должны удовлетворять критерию размерности. Количество столбцов первой матрицы должно равняться количеству строк во второй матрице. Результирующая матрица же будет иметь столько же строк сколько первая матрица и столько же столбцов сколько имеет вторая матрица.
+\par Существует множество реализаций умножения матриц, как последовательные, так и параллельные. Из последовательных реализаций в данной лабораторной работе приведены наивное и блочное умножения матриц. Паралельная реализация основана на алгоритме Кэннона. Наивный алгоритм как раз таки представлен формулой (1).
+
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+В данной лабораторной работе поставлена задача в последовательной и параллельной реализации умножения матриц  с помощью алгоритма Кэннона. Для этого требуется выполнить ряд функций:
+\par Для последоваетльной работы:
+\begin{itemize}
+\item Наивное умножение
+\item Блочное умножение
+\end{itemize}
+\par Для параллельной на основе алгоритма Кэннона с использованием технологий:
+\begin{itemize}
+\item OpenMP
+\item TBB
+\item std::threads
+\end{itemize}
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\parБлочная матрица - представление матрицы, при котором она рассекается вертикальными и горизонтальными линиями на прямоугольные части - блоки. Элементами блочной матрицы A являются матрицы $A_{ij}$ размеров $m_i\times n_j$, где $i=1,2,\ldots,p, j=1,2,\ldots,q$, причем $m_1+m_2+\ldots+m_p=m и n_1+n_2+\ldots+n_q=n$.
+\parТеперь перейдем к самому алгоритму Кэннона.\\
+Будем предполагать, что все матрицы являются квадратными размера $N\times N$, а количество блоков по горизонтали и по вертикали является одинаковым и равным q (при этом размер всех блоков равен $K\times K$, где $K = \frac{N}{q}$). Тогда умножение будет определяться так же, как формула, приведенная во введении, только под знаком суммы фигурируют блоки матриц А и В, а результат записывается в блок матрицы С.\\
+\begin{equation}\label{eq:multblock}
+C_{ij} =  \sum \limits_{p=1}^{n} A_{ip} * B_{pj}
+\end{equation}
+\parАлгоритм Кэннона расчитан только для параллельной реализации, поэтому удобно для каждого потока определить задачу вычисления одного из блоков результирующей матрицы С. Так как для потоков пересылка целых блоков матриц не нужна, поток должен знать свои номера блоков матриц А и В, чтобы в каждый момент времени их перемножить и результат сохранить в блок результирующей матрицы.\\
+Также предполагается, что количество потоков равно $q^2$.
+
+Поток сразу знает номера блоков матриц, которые перемножает.
+
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Каждый поток должен знать номера блоков матриц, которые нужно умножить. Задача сводится к определению этих номеров с помощью формул.
+
+Пошагово алгоритм Кэннона выглядит следующим образом:
+\begin{itemize}
+\item Начальное определение
+\begin{enumerate}
+\item Для каждого потока по формуле высчитывается нужные номера блоков матрицы А и В .
+\end{enumerate}
+\end{itemize}
+\begin{itemize}
+\item Запускается цикл из q итераций и выполняются следующие действия
+\begin{enumerate}
+\item Каждый поток производит умножение матриц с полученными номерами и записывает их в результирующий блок матрицы С.
+\item Заново по формуле высчитываются новые номера блоков матриц.
+\end{enumerate}
+\end{itemize}
+
+После завершения цикла в каждом потоке будет содержаться матрица $C_{ij}$, равная соответствующему блоку произведения A*B. Останется объединить эти блоки в результирующую матрицу С.
+
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+Рассмотрим реализацию алгоритма Кэннона с использованием разных технологий, при этом заметим, что принцип везде одинаков, только меняются инструменты параллелизации.
+\par OpenMP.\\
+Так как алгоритм основан на циклах, используется директива \verb|#pragma omp parallel for|, которая позволяет распараллеливать циклы.
+Приведу псевдокод, который показывает формулу, по которой каждый поток получает свой блок матрицы А и В в начале пересылок и в самом цикле.
+\begin{lstlisting}
+#pragma omp parallel num_threads(q* q)
+  {
+    int place_i = omp_get_thread_num() / q;
+    int place_j = omp_get_thread_num() % q;
+    int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+    std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+        Cij(BlSize, std::vector<double>(BlSize, 0));
+
+    // first iterration
+    for (int n = 0; n < BlSize; n++) {
+      Ai = place_i * BlSize + n;
+      Aj = ((place_i + place_j) % q) * BlSize;
+      Bi = Aj + n;
+      Bj = place_j * BlSize;
+      Aij[n] =
+          std::vector<double>(A[Ai].begin() + Aj, A[Ai].begin() + Aj + BlSize);
+      Bij[n] =
+          std::vector<double>(B[Bi].begin() + Bj, B[Bi].begin() + Bj + BlSize);
+    }
+
+    // main construction
+    int nextAi, nextAj, nextBi, nextBj = 0;
+    for (int iter = 0; iter < q; iter++) {
+      for (int i = 0; i < BlSize; i++)
+        for (int j = 0; j < BlSize; j++)
+          for (int k = 0; k < BlSize; k++) Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+      if (iter == q - 1) break;
+
+      for (int n = 0; n < BlSize; n++) {
+        nextAi = place_i * BlSize + n;
+        nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+        nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+        nextBj = place_j * BlSize;
+        Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                     A[nextAi].begin() + nextAj + BlSize);
+        Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                     B[nextBi].begin() + nextBj + BlSize);
+      }
+    }
+ }
+
+\end{lstlisting}
+
+\par TBB
+\par Аналогично OpenMP используется функция \verb|tbb::parallel_for|, которая принимает на вход двумерное итерационное пространство \verb|tbb::blocked_range2d| с размером по строкам и столбцам равным 0, n и шагом N(n - размер матрицы, N - размер блока), и лямбда, которая составляет тело функции, то есть алгоритм Кэннона.
+\begin{lstlisting}
+tbb::parallel_for(
+      tbb::blocked_range2d<int>(0, newSize, BlSize, 0, newSize, BlSize),
+      [&](const tbb::blocked_range2d<int>& r) {
+        int place_i = r.rows().begin() / BlSize;
+        int place_j = r.cols().begin() / BlSize;
+        int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+        std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+            Cij(BlSize, std::vector<double>(BlSize, 0));
+
+        // first iterration
+        for (int n = 0; n < BlSize; n++) {
+          Ai = place_i * BlSize + n;
+          Aj = ((place_i + place_j) % q) * BlSize;
+          Bi = Aj + n;
+          Bj = place_j * BlSize;
+          Aij[n] = std::vector<double>(A[Ai].begin() + Aj,
+                                       A[Ai].begin() + Aj + BlSize);
+          Bij[n] = std::vector<double>(B[Bi].begin() + Bj,
+                                       B[Bi].begin() + Bj + BlSize);
+        }
+
+        // main construction
+        int nextAi, nextAj, nextBi, nextBj = 0;
+        for (int iter = 0; iter < q; iter++) {
+          for (int i = 0; i < BlSize; i++)
+            for (int j = 0; j < BlSize; j++)
+              for (int k = 0; k < BlSize; k++)
+                Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+          if (iter == q - 1) break;
+
+          for (int n = 0; n < BlSize; n++) {
+            nextAi = place_i * BlSize + n;
+            nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+            nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+            nextBj = place_j * BlSize;
+            Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                         A[nextAi].begin() + nextAj + BlSize);
+            Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                         B[nextBi].begin() + nextBj + BlSize);
+          }
+        }
+    });
+  
+\end{lstlisting}
+
+\par std::threads
+\par Здесь используется API \verb|std::thread|, которое осуществляется при помощи создания объектов \verb|std::thread|, каждый из которых отвечает за работу одного потока.
+Сначала объявляется лямбда, которая, как и в TBB версии, отвечает за алгоритм Кэннона. Лямбда принимает номера потоков по строчке и столбцу, после чего, по формулам вычисляет нужные блоки. В остальном разницы с TBB почти нет в плане написания кода.
+\begin{lstlisting}
+    //function
+  auto func = [&](int i_thread, int j_thread) {
+    int place_i = i_thread;
+    int place_j = j_thread;
+    int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+    std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+        Cij(BlSize, std::vector<double>(BlSize, 0));
+
+    // first iterration
+    for (int n = 0; n < BlSize; n++) {
+      Ai = place_i * BlSize + n;
+      Aj = ((place_i + place_j) % q) * BlSize;
+      Bi = Aj + n;
+      Bj = place_j * BlSize;
+      Aij[n] =
+          std::vector<double>(A[Ai].begin() + Aj, A[Ai].begin() + Aj + BlSize);
+      Bij[n] =
+          std::vector<double>(B[Bi].begin() + Bj, B[Bi].begin() + Bj + BlSize);
+    }
+
+    // main construction
+    int nextAi, nextAj, nextBi, nextBj = 0;
+    for (int iter = 0; iter < q; iter++) {
+      for (int i = 0; i < BlSize; i++)
+        for (int j = 0; j < BlSize; j++)
+          for (int k = 0; k < BlSize; k++) Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+      if (iter == q - 1) break;
+
+      for (int n = 0; n < BlSize; n++) {
+        nextAi = place_i * BlSize + n;
+        nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+        nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+        nextBj = place_j * BlSize;
+        Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                     A[nextAi].begin() + nextAj + BlSize);
+        Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                     B[nextBi].begin() + nextBj + BlSize);
+      }
+    }
+    for (int i = 0; i < BlSize; i++)
+      for (int j = 0; j < BlSize; j++)
+        C[place_i * BlSize + i][place_j * BlSize + j] = Cij[i][j];
+  };}
+\end{lstlisting}
+
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+Для того, чтобы подтвердить корректность реализованных функций для работы с матрицами, были написаны тесты, разработанные с помощью Google C++ Testing Framework.
+
+Большинство тестов проверяют корректность работы и подсчета при работе с разными матрицами разного размера. В последнем тесте, как правило, составлен шаблон проверки эффективности работы.
+
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Эксперименты проводились на данном железе:
+\begin{itemize}
+\item Операционная система: Windows 10 Home
+\item Процессор: Intel(R) Core(TM) i5-8250U CPU @ 1.60GHz   1.80 GHz
+\item RAM: 8 Gb
+\end{itemize}
+\vspace{3em}
+\begin{tabular}{ |c|c|c|c|c|c|c|c|}
+\hline
+\multirow{2}{*}{Кол-во данных} & Последовательно & \multicolumn{2}{c|}{OpenMP} & \multicolumn{2}{c|}{TBB} & \multicolumn{2}{c|}{std::thread} \\ \cline{2-8} 
+     & Время & Время & Уск & Время & Уск & Время & Уск \\ \hline
+500  &  3.423 & 1.794 & 1.908 & 1.774 &1.930 & 1.518 & 2.255   \\
+750 & 8.031 & 3.291 & 2.440 & 3.025 & 2.655 & 2.070 & 3.934 \\
+1000 & 29.8071 & 15.872 & 1.878 & 16.101 & 1.851 & 14.351 & 2.076 \\
+\hline
+\end{tabular}
+
+\newpage
+
+% Выводы из результатов экспериментов
+\section*{Выводы из результатов экспериментов}
+\addcontentsline{toc}{section}{Выводы из результатов экспериментов}
+
+\begin{itemize}
+\item Ускорение всех технологий распараллеливания примерно одинаковое. Это неудивительно, так как схема распараллеливания у них одинаковая, отличается только инструментами реализации.
+\item  Ускорение данного алгоритма основано на кешировании. Тем самым, чем больше данных и больше потоков, тем ускорение будет проявляться выше и выше. Это теоретически, но практически, из-за накладных расходов, планировщика, время работы высчитывается с некоторой погрешностью.
+\end{itemize}
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+Таким образом, мы вспомнили некоторые ключевые моменты, а именно: определение матрицы, умножение матриц. Изучили алгоритм Кэннона, который позволяет реализовать параллельное умножение матриц, технологии распараллеливания OpenMP, TBB, std::thread.
+
+Были написаны тесты на основе Google C++ Testing Framework, которые подтвердили корректность решенной задачи.
+\newpage
+
+% Литература
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+\begin{enumerate}
+\item Алгоритмы умножения матриц [Электронный ресурс]\\$http://edu.mmcs.sfedu.ru/pluginfile.php/4232/mod_resource/content/3/MPIMatr2018.pdf$\\
+\item Блочные матрицы [Электронный ресурс]\\$http://mathhelpplanet.com/static.php?p=blochnye-matritsy$\\
+\item Эффективность параллельных алгоритмов [Электронный ресурс] \\$http://masters.donntu.org/2011/fknt/lyamina/library/conference2011.pdf$
+\item А.В. Сысоев, И.Б. Мееров, А.А. Сиднев «Средства разработки параллельных программ для систем с общей памятью. Библиотека Intel Threading Building Blocks». Нижний Новгород, 2007, 128 с. 
+\item А.В. Сысоев, И.Б. Мееров, А.Н. Свистунов, А.Л. Курылев, А.В. Сенин, А.В. Шишков, К.В. Корняков, А.А. Сиднев «Параллельное программирование в системах с общей
+памятью. Инструментальная поддержка». Нижний Новгород, 2007, 110 с. 
+\end{enumerate} 
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\textbf{Последовательная версия}
+\newline
+\newline cannons\_alg.h
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#ifndef MODULES_TASK_1_UTYUGOV_D_CANNONS_ALG_CANNONS_ALG_H_
+#define MODULES_TASK_1_UTYUGOV_D_CANNONS_ALG_CANNONS_ALG_H_
+#include <vector>
+std::vector<double> getRandomVector(int size);
+std::vector<std::vector<double>> getRndMatrix(int size);
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B);
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize);
+
+#endif  // MODULES_TASK_1_UTYUGOV_D_CANNONS_ALG_CANNONS_ALG_H_
+
+
+\end{lstlisting}
+cannons\_alg.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include "../../../modules/task_1/utyugov_d_cannons_alg/cannons_alg.h"
+
+#include <random>
+#include <vector>
+
+std::vector<double> getRandomVector(int size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(size);
+  for (int i = 0; i < size; i++) {
+    vec[i] = gen() % size;
+  }
+  return vec;
+}
+
+std::vector<std::vector<double>> getRndMatrix(int size) {
+  std::vector<std::vector<double>> A(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++) {
+    A[i] = getRandomVector(size);
+  }
+  return A;
+}
+
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B) {
+  int size = A.size();
+  std::vector<std::vector<double>> C(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++)
+      for (int k = 0; k < size; k++) C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize) {
+  int size = A.size();
+  std::vector<std::vector<double>> C(size, std::vector<double>(size, 0));
+  int Minj, Mink = 0;
+
+  for (int Globj = 0; Globj < size; Globj += BlSize) {
+    Minj = std::min(Globj + BlSize, size);
+    for (int Globk = 0; Globk < size; Globk += BlSize) {
+      Mink = std::min(Globk + BlSize, size);
+
+      for (int i = 0; i < size; i++)
+        for (int j = Globj; j < Minj; j++)
+          for (int k = Globk; k < Mink; k++) {
+            C[i][j] += A[i][k] * B[k][j];
+          }
+    }
+  }
+  return C;
+}
+
+\end{lstlisting}
+main.cpp
+\begin{lstlisting} 
+// Copyright 2022 Utyugov Denis
+#include <gtest/gtest.h>
+
+#include <vector>
+
+#include "./cannons_alg.h"
+
+TEST(getRndMatrix, Create_random_matrix) {
+  int size = 3;
+  ASSERT_NO_THROW(getRndMatrix(size));
+}
+
+TEST(Multiplicate, Mult_matrix_3x3) {
+  int size = 3;
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  ASSERT_NO_THROW(Multiplicate(A, B));
+}
+
+TEST(Multiplicate, Check_Result_On_3x3) {
+  int size = 3;
+  double sum = 0;
+  std::vector<std::vector<double>> A = {{4, -1, 3}, {4, -2, -6}, {2, 0, 3}};
+  std::vector<std::vector<double>> B = {{5, 3, -7}, {-1, 6, -3}, {2, -4, 1}};
+  std::vector<std::vector<double>> C = Multiplicate(A, B);
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++) sum += C[i][j];
+  ASSERT_EQ(sum, 4);
+}
+
+TEST(Multiplicate, Check_Result_On_5x5) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> C = Multiplicate(A, B);
+  ASSERT_EQ(C[4][4], 1775);
+}
+
+TEST(BlockMultiplicate, BlockMult_and_Mult_BlockSize_is_two) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  ASSERT_EQ(Multiplicate(A, B), BlockMultiplicate(A, B, 2));
+}
+
+TEST(BlockMultiplicate, BlockMult_and_Mult_BlockSize_is_three) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  ASSERT_EQ(Multiplicate(A, B), BlockMultiplicate(A, B, 3));
+}
+\end{lstlisting}
+
+\textbf{OpenMP версия}
+\newline
+\newline cannons\_alg.h
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+
+#ifndef MODULES_TASK_2_UTYUGOV_D_CANNONS_ALG_OMP_CANNONS_ALG_H_
+#define MODULES_TASK_2_UTYUGOV_D_CANNONS_ALG_OMP_CANNONS_ALG_H_
+#include <string>
+#include <vector>
+
+std::vector<double> getRandomVector(int size);
+std::vector<std::vector<double>> getRndMatrix(int size);
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size);
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize);
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            const int& num_threads);
+#endif  // MODULES_TASK_2_UTYUGOV_D_CANNONS_ALG_OMP_CANNONS_ALG_H_
+
+\end{lstlisting}
+cannons\_alg.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include "../../../modules/task_2/utyugov_d_cannons_alg_omp/cannons_alg.h"
+
+#include <omp.h>
+
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
+
+std::vector<double> getRandomVector(int size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(size);
+  for (int i = 0; i < size; i++) {
+    vec[i] = gen() % size;
+  }
+  return vec;
+}
+
+std::vector<std::vector<double>> getRndMatrix(int size) {
+  std::vector<std::vector<double>> A(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++) {
+    A[i] = getRandomVector(size);
+  }
+  return A;
+}
+
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size) {
+  std::vector<std::vector<double>> C(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++)
+      for (int k = 0; k < size; k++) C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize) {
+  int size = A.size();
+  std::vector<std::vector<double>> C(size, std::vector<double>(size, 0));
+  int Minj, Mink = 0;
+
+  for (int Globj = 0; Globj < size; Globj += BlSize) {
+    Minj = std::min(Globj + BlSize, size);
+    for (int Globk = 0; Globk < size; Globk += BlSize) {
+      Mink = std::min(Globk + BlSize, size);
+
+      for (int i = 0; i < size; i++)
+        for (int j = Globj; j < Minj; j++)
+          for (int k = Globk; k < Mink; k++) {
+            C[i][j] += A[i][k] * B[k][j];
+          }
+    }
+  }
+  return C;
+}
+
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            const int& num_threads) {
+  int size = A.size();
+  int q = std::sqrt(num_threads);
+
+  int newSize = size;
+  while (newSize % q != 0) {
+    A.push_back(std::vector<double>(size, 0));
+    B.push_back(std::vector<double>(size, 0));
+    newSize++;
+  }
+
+  std::vector<std::vector<double>> C(newSize, std::vector<double>(newSize, 0));
+  int BlSize = newSize / q;
+
+  for (int i = 0; i < newSize; i++)
+    for (int j = 0; j < newSize - size; j++) {
+      A[i].push_back(0);
+      B[i].push_back(0);
+    }
+
+#pragma omp parallel num_threads(q* q)
+  {
+    int place_i = omp_get_thread_num() / q;
+    int place_j = omp_get_thread_num() % q;
+    int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+    std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+        Cij(BlSize, std::vector<double>(BlSize, 0));
+
+    // first iterration
+    for (int n = 0; n < BlSize; n++) {
+      Ai = place_i * BlSize + n;
+      Aj = ((place_i + place_j) % q) * BlSize;
+      Bi = Aj + n;
+      Bj = place_j * BlSize;
+      Aij[n] =
+          std::vector<double>(A[Ai].begin() + Aj, A[Ai].begin() + Aj + BlSize);
+      Bij[n] =
+          std::vector<double>(B[Bi].begin() + Bj, B[Bi].begin() + Bj + BlSize);
+    }
+
+    // main construction
+    int nextAi, nextAj, nextBi, nextBj = 0;
+    for (int iter = 0; iter < q; iter++) {
+      for (int i = 0; i < BlSize; i++)
+        for (int j = 0; j < BlSize; j++)
+          for (int k = 0; k < BlSize; k++) Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+      if (iter == q - 1) break;
+
+      for (int n = 0; n < BlSize; n++) {
+        nextAi = place_i * BlSize + n;
+        nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+        nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+        nextBj = place_j * BlSize;
+        Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                     A[nextAi].begin() + nextAj + BlSize);
+        Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                     B[nextBi].begin() + nextBj + BlSize);
+      }
+    }
+    for (int i = 0; i < BlSize; i++)
+      for (int j = 0; j < BlSize; j++)
+        C[place_i * BlSize + i][place_j * BlSize + j] = Cij[i][j];
+
+#pragma omp barrier
+    if (newSize != size) {
+#pragma omp parallel for
+      for (int i = 0; i < size; i++) {
+        C[i].resize(size);
+      }
+    }
+  }
+  C.resize(size);
+
+  return C;
+}
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include <gtest/gtest.h>
+#include <omp.h>
+#include <vector>
+#include "./cannons_alg.h"
+/*
+TEST(CannonsAlg, Mult_matrix_10x10) {
+  int size = 10;
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  ASSERT_NO_THROW(CannonsAlg(A, B, 16));
+}
+*/
+
+TEST(CannonsAlg, For_efficiency) {
+  int size = 100;
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  
+  double t1 = omp_get_wtime();
+  CannonsAlg(A, B, 16);
+  t1 = omp_get_wtime() - t1;
+  double t2 = omp_get_wtime();
+  BlockMultiplicate(A, B, 4);
+  t2 = omp_get_wtime() - t2;
+  std::cout << "OMP: " << t1 << std::endl;
+  std::cout << "BlockMult: " << t2 << std::endl;
+
+  size = 1000;
+  std::vector<std::vector<double>> C = getRndMatrix(size);
+  std::vector<std::vector<double>> D = getRndMatrix(size);
+
+  t1 = omp_get_wtime();
+  CannonsAlg(C, D, 64);
+  t1 = omp_get_wtime() - t1;
+  t2 = omp_get_wtime();
+  BlockMultiplicate(C, D, 4);
+  t2 = omp_get_wtime() - t2;
+  std::cout << "OMP: " << t1 << std::endl;
+  std::cout << "BlockMult: " << t2 << std::endl;
+
+  ASSERT_EQ(true, true);
+}
+
+
+TEST(CannonsAlg, Check_Result_On_3x3) {
+  int size = 3;
+  double sum = 0;
+  std::vector<std::vector<double>> A = {{4, -1, 3}, {4, -2, -6}, {2, 0, 3}};
+  std::vector<std::vector<double>> B = {{5, 3, -7}, {-1, 6, -3}, {2, -4, 1}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++) sum += C[i][j];
+  ASSERT_EQ(sum, 4);
+}
+
+TEST(CannonsAlg, Check_Result_On_5x5) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  ASSERT_EQ(C[4][4], 1775);
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_BlockSize_is_two) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  ASSERT_EQ(CannonsAlg(A, B, 4), BlockMultiplicate(A, B, 4));
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_BlockSize_wiih_one_proc) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  ASSERT_EQ(CannonsAlg(A, B, 1), BlockMultiplicate(A, B, 3));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+
+\textbf{TBB версия}
+\newline
+\newline cannons\_alg.h
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+
+#ifndef MODULES_TASK_3_UTYUGOV_D_CANNONS_ALG_TBB_CANNONS_ALG_H_
+#define MODULES_TASK_3_UTYUGOV_D_CANNONS_ALG_TBB_CANNONS_ALG_H_
+#include <string>
+#include <vector>
+
+std::vector<double> getRandomVector(int size);
+std::vector<std::vector<double>> getRndMatrix(int size);
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size);
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize);
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            int num_threads);
+#endif  // MODULES_TASK_3_UTYUGOV_D_CANNONS_ALG_TBB_CANNONS_ALG_H_
+
+\end{lstlisting}
+cannons\_alg.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include "../../../modules/task_3/utyugov_d_cannons_alg_tbb/cannons_alg.h"
+
+#include <tbb/tbb.h>
+#include <iostream>
+#include <random>
+#include <string>
+#include <vector>
+
+std::vector<double> getRandomVector(int size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(size);
+  for (int i = 0; i < size; i++) {
+    vec[i] = gen() % size;
+  }
+  return vec;
+}
+
+std::vector<std::vector<double>> getRndMatrix(int size) {
+  std::vector<std::vector<double>> A(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++) {
+    A[i] = getRandomVector(size);
+  }
+  return A;
+}
+
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size) {
+  std::vector<std::vector<double>> C(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++)
+      for (int k = 0; k < size; k++) C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize) {
+  int size = A.size();
+  std::vector<std::vector<double>> C(size, std::vector<double>(size, 0));
+  int Minj, Mink = 0;
+
+  for (int Globj = 0; Globj < size; Globj += BlSize) {
+    Minj = std::min<int>(Globj + BlSize, size);
+    for (int Globk = 0; Globk < size; Globk += BlSize) {
+      Mink = std::min<int>(Globk + BlSize, size);
+
+      for (int i = 0; i < size; i++)
+        for (int j = Globj; j < Minj; j++)
+          for (int k = Globk; k < Mink; k++) {
+            C[i][j] += A[i][k] * B[k][j];
+          }
+    }
+  }
+  return C;
+}
+
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            int num_threads) {
+  tbb::task_scheduler_init init(num_threads);
+  // int num_threads = init.default_num_threads();
+  int size = A.size();
+  int q = std::sqrt(num_threads);
+
+  int newSize = size;
+  while (newSize % q != 0) {
+    A.push_back(std::vector<double>(size, 0));
+    B.push_back(std::vector<double>(size, 0));
+    newSize++;
+  }
+
+  std::vector<std::vector<double>> C(newSize, std::vector<double>(newSize, 0));
+  int BlSize = newSize / q;
+
+  for (int i = 0; i < newSize; i++)
+    for (int j = 0; j < newSize - size; j++) {
+      A[i].push_back(0);
+      B[i].push_back(0);
+    }
+
+  tbb::parallel_for(
+      tbb::blocked_range2d<int>(0, newSize, BlSize, 0, newSize, BlSize),
+      [&](const tbb::blocked_range2d<int>& r) {
+        int place_i = r.rows().begin() / BlSize;
+        int place_j = r.cols().begin() / BlSize;
+        int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+        std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+            Cij(BlSize, std::vector<double>(BlSize, 0));
+
+        // first iterration
+        for (int n = 0; n < BlSize; n++) {
+          Ai = place_i * BlSize + n;
+          Aj = ((place_i + place_j) % q) * BlSize;
+          Bi = Aj + n;
+          Bj = place_j * BlSize;
+          Aij[n] = std::vector<double>(A[Ai].begin() + Aj,
+                                       A[Ai].begin() + Aj + BlSize);
+          Bij[n] = std::vector<double>(B[Bi].begin() + Bj,
+                                       B[Bi].begin() + Bj + BlSize);
+        }
+
+        // main construction
+        int nextAi, nextAj, nextBi, nextBj = 0;
+        for (int iter = 0; iter < q; iter++) {
+          for (int i = 0; i < BlSize; i++)
+            for (int j = 0; j < BlSize; j++)
+              for (int k = 0; k < BlSize; k++)
+                Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+          if (iter == q - 1) break;
+
+          for (int n = 0; n < BlSize; n++) {
+            nextAi = place_i * BlSize + n;
+            nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+            nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+            nextBj = place_j * BlSize;
+            Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                         A[nextAi].begin() + nextAj + BlSize);
+            Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                         B[nextBi].begin() + nextBj + BlSize);
+          }
+        }
+        for (int i = 0; i < BlSize; i++)
+          for (int j = 0; j < BlSize; j++)
+            C[place_i * BlSize + i][place_j * BlSize + j] = Cij[i][j];
+      });
+  if (newSize != size) {
+    tbb::parallel_for(tbb::blocked_range<int>(0, newSize, BlSize),
+                      [&](const tbb::blocked_range<int>& r) {
+                        for (int i = r.begin(); i < r.end(); i++) {
+                          C[i].resize(size);
+                        }
+                      });
+  }
+  C.resize(size);
+
+  return C;
+}
+
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include <gtest/gtest.h>
+#include <tbb/tbb.h>
+
+#include <vector>
+
+#include "./cannons_alg.h"
+
+TEST(CannonsAlg, Mult_matrix_10x10) {
+  int size = 10;
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  ASSERT_NO_THROW(CannonsAlg(A, B, 16));
+}
+
+TEST(CannonsAlg, Check_Result_On_3x3) {
+  int size = 3;
+  double sum = 0;
+  std::vector<std::vector<double>> A = {{4, -1, 3}, {4, -2, -6}, {2, 0, 3}};
+  std::vector<std::vector<double>> B = {{5, 3, -7}, {-1, 6, -3}, {2, -4, 1}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++) sum += C[i][j];
+  ASSERT_EQ(sum, 4);
+}
+
+TEST(CannonsAlg, Check_Result_On_5x5) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  ASSERT_EQ(C[4][4], 1775);
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_6x6_rand_double) {
+  std::vector<std::vector<double>> A = getRndMatrix(6);
+  std::vector<std::vector<double>> B = getRndMatrix(6);
+  ASSERT_EQ(CannonsAlg(A, B, 4), BlockMultiplicate(A, B, 2));
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_7x7_9threads) {
+  int size = 1000;
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  
+  auto t1 = tbb::tick_count::now();
+  BlockMultiplicate(A, B, 3);
+  auto T1 = (tbb::tick_count::now() - t1).seconds();
+  std::cout << T1 << std::endl;
+  auto t2 = tbb::tick_count::now();
+  CannonsAlg(A, B, 9);
+  auto T2 = (tbb::tick_count::now() - t2).seconds();
+  std::cout << T2 << std::endl;
+  
+  ASSERT_EQ(1, 1);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\textbf{std::thread версия}
+\newline
+\newline cannons\_alg.h
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+
+#ifndef MODULES_TASK_4_UTYUGOV_D_CANNONS_ALG_STD_CANNONS_ALG_H_
+#define MODULES_TASK_4_UTYUGOV_D_CANNONS_ALG_STD_CANNONS_ALG_H_
+#include <string>
+#include <vector>
+
+std::vector<double> getRandomVector(int size);
+std::vector<std::vector<double>> getRndMatrix(int size);
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size);
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize);
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            int num_threads);
+#endif  // MODULES_TASK_4_UTYUGOV_D_CANNONS_ALG_STD_CANNONS_ALG_H_
+
+\end{lstlisting}
+cannons\_alg.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include "../../../modules/task_4/utyugov_d_cannons_alg_std/cannons_alg.h"
+
+#include <iostream>
+#include <random>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "../../../3rdparty/unapproved/unapproved.h"
+
+std::vector<double> getRandomVector(int size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(size);
+  for (int i = 0; i < size; i++) {
+    vec[i] = gen() % size;
+  }
+  return vec;
+}
+
+std::vector<std::vector<double>> getRndMatrix(int size) {
+  std::vector<std::vector<double>> A(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++) {
+    A[i] = getRandomVector(size);
+  }
+  return A;
+}
+
+std::vector<std::vector<double>> Multiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int size) {
+  std::vector<std::vector<double>> C(size, std::vector<double>(size));
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++)
+      for (int k = 0; k < size; k++) C[i][j] += A[i][k] * B[k][j];
+  return C;
+}
+
+std::vector<std::vector<double>> BlockMultiplicate(
+    std::vector<std::vector<double>> A, std::vector<std::vector<double>> B,
+    int BlSize) {
+  int size = A.size();
+  std::vector<std::vector<double>> C(size, std::vector<double>(size, 0));
+  int Minj, Mink = 0;
+
+  for (int Globj = 0; Globj < size; Globj += BlSize) {
+    Minj = std::min<int>(Globj + BlSize, size);
+    for (int Globk = 0; Globk < size; Globk += BlSize) {
+      Mink = std::min<int>(Globk + BlSize, size);
+
+      for (int i = 0; i < size; i++)
+        for (int j = Globj; j < Minj; j++)
+          for (int k = Globk; k < Mink; k++) {
+            C[i][j] += A[i][k] * B[k][j];
+          }
+    }
+  }
+  return C;
+}
+
+std::vector<std::vector<double>> CannonsAlg(std::vector<std::vector<double>> A,
+                                            std::vector<std::vector<double>> B,
+                                            int num_threads) {
+  std::thread* threads = new std::thread[num_threads];
+  int size = A.size();
+  int q = std::sqrt(num_threads);
+
+  int newSize = size;
+  while (newSize % q != 0) {
+    A.push_back(std::vector<double>(size, 0));
+    B.push_back(std::vector<double>(size, 0));
+    newSize++;
+  }
+
+  std::vector<std::vector<double>> C(newSize, std::vector<double>(newSize, 0));
+  int BlSize = newSize / q;
+
+  for (int i = 0; i < newSize; i++)
+    for (int j = 0; j < newSize - size; j++) {
+      A[i].push_back(0);
+      B[i].push_back(0);
+    }
+
+  //function
+  auto func = [&](int i_thread, int j_thread) {
+    int place_i = i_thread;
+    int place_j = j_thread;
+    int Ai = 0, Aj = 0, Bi = 0, Bj = 0;
+
+    std::vector<std::vector<double>> Aij(BlSize), Bij(BlSize),
+        Cij(BlSize, std::vector<double>(BlSize, 0));
+
+    // first iterration
+    for (int n = 0; n < BlSize; n++) {
+      Ai = place_i * BlSize + n;
+      Aj = ((place_i + place_j) % q) * BlSize;
+      Bi = Aj + n;
+      Bj = place_j * BlSize;
+      Aij[n] =
+          std::vector<double>(A[Ai].begin() + Aj, A[Ai].begin() + Aj + BlSize);
+      Bij[n] =
+          std::vector<double>(B[Bi].begin() + Bj, B[Bi].begin() + Bj + BlSize);
+    }
+
+    // main construction
+    int nextAi, nextAj, nextBi, nextBj = 0;
+    for (int iter = 0; iter < q; iter++) {
+      for (int i = 0; i < BlSize; i++)
+        for (int j = 0; j < BlSize; j++)
+          for (int k = 0; k < BlSize; k++) Cij[i][j] += Aij[i][k] * Bij[k][j];
+
+      if (iter == q - 1) break;
+
+      for (int n = 0; n < BlSize; n++) {
+        nextAi = place_i * BlSize + n;
+        nextAj = ((Aj / BlSize + iter + 1) % q) * BlSize;
+        nextBi = ((Bi / BlSize + iter + 1) % q) * BlSize + n;
+        nextBj = place_j * BlSize;
+        Aij[n] = std::vector<double>(A[nextAi].begin() + nextAj,
+                                     A[nextAi].begin() + nextAj + BlSize);
+        Bij[n] = std::vector<double>(B[nextBi].begin() + nextBj,
+                                     B[nextBi].begin() + nextBj + BlSize);
+      }
+    }
+    for (int i = 0; i < BlSize; i++)
+      for (int j = 0; j < BlSize; j++)
+        C[place_i * BlSize + i][place_j * BlSize + j] = Cij[i][j];
+  };
+
+  int count = 0;
+  for (int i = 0; i < q; ++i) {
+    for (int j = 0; j < q; ++j) {
+      threads[count] = std::thread(func, i, j);
+      count++;
+    }
+  }
+
+  for (int i = 0; i < num_threads; ++i) threads[i].join();
+
+  // parallel resize
+  auto resize = [&](int start, int temp_size) {
+    for (auto i = start; i < temp_size; ++i) {
+      C[i].resize(size);
+    }
+  };
+
+  if (size != newSize) {
+    std::thread* threads1 = new std::thread[BlSize];
+    for (int i = 0; i < BlSize; ++i) {
+      threads1[i] = std::thread(resize, i * q, i * q + q);
+    }
+    for (int j = 0; j < BlSize; ++j) {
+      threads1[j].join();
+    }
+    delete[] threads1;
+  }
+  C.resize(size);
+  delete[] threads;
+  return C;
+
+  return C;
+}
+
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Utyugov Denis
+#include <gtest/gtest.h>
+
+#include <vector>
+
+#include "../../../3rdparty/unapproved/unapproved.h"
+#include "./cannons_alg.h"
+
+TEST(CannonsAlg, Mult_matrix_10x10) {
+  int size = 10;
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  ASSERT_NO_THROW(CannonsAlg(A, B, 16));
+}
+
+TEST(CannonsAlg, Check_Result_On_3x3) {
+  int size = 3;
+  double sum = 0;
+  std::vector<std::vector<double>> A = {{4, -1, 3}, {4, -2, -6}, {2, 0, 3}};
+  std::vector<std::vector<double>> B = {{5, 3, -7}, {-1, 6, -3}, {2, -4, 1}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  for (int i = 0; i < size; i++)
+    for (int j = 0; j < size; j++) sum += C[i][j];
+  ASSERT_EQ(sum, 4);
+}
+
+TEST(CannonsAlg, Check_Result_On_5x5) {
+  std::vector<std::vector<double>> A = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> B = {{1, 2, 3, 4, 5},
+                                        {6, 7, 8, 9, 10},
+                                        {11, 12, 13, 14, 15},
+                                        {16, 17, 18, 19, 20},
+                                        {21, 22, 23, 24, 25}};
+  std::vector<std::vector<double>> C = CannonsAlg(A, B, 4);
+  ASSERT_EQ(C[4][4], 1775);
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_6x6_rand_double) {
+  std::vector<std::vector<double>> A = getRndMatrix(6);
+  std::vector<std::vector<double>> B = getRndMatrix(6);
+  ASSERT_EQ(CannonsAlg(A, B, 4), BlockMultiplicate(A, B, 2));
+}
+
+TEST(CannonsAlg, BlockMult_and_CannonsAlg_7x7_9threads) {
+  int size = 1000;
+  std::vector<std::vector<double>> B = getRndMatrix(size);
+  std::vector<std::vector<double>> A = getRndMatrix(size);
+  
+  auto t1 = std::chrono::high_resolution_clock::now();
+  BlockMultiplicate(A, B, 3);
+  auto t2 = std::chrono::high_resolution_clock::now();
+  auto T1 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+  std::cout << T1.count() << std::endl;
+  auto t3 = std::chrono::high_resolution_clock::now();
+  CannonsAlg(A, B, 9);
+  auto t4 = std::chrono::high_resolution_clock::now();
+  auto T2 = std::chrono::duration_cast<std::chrono::duration<double>>(t4 - t3);
+  std::cout << T2.count() << std::endl;
+  
+  ASSERT_EQ(1,1);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+
+\end{document}
